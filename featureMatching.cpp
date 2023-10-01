@@ -59,6 +59,31 @@ float histogramIntersection(const std::vector<float>& h1, const std::vector<floa
     return intersection;
 }
 
+// Function to compute 3D histogram
+std::vector<float> compute3DHistogram(const cv::Mat& img, int bins) {
+    int bins3D = bins * bins * bins;
+    std::vector<float> hist(bins3D, 0);
+
+    for (int y = 0; y < img.rows; y++) {
+        for (int x = 0; x < img.cols; x++) {
+            cv::Vec3b pixel = img.at<cv::Vec3b>(y, x);
+
+            int binR = std::min((int)(pixel[2] * bins / 256.0), bins - 1);
+            int binG = std::min((int)(pixel[1] * bins / 256.0), bins - 1);
+            int binB = std::min((int)(pixel[0] * bins / 256.0), bins - 1);
+
+            hist[binR * bins * bins + binG * bins + binB] += 1;
+        }
+    }
+
+    // Normalize the histogram
+    float sum = 0;
+    for (const auto& val : hist) sum += val;
+    for (auto& val : hist) val /= sum;
+
+    return hist;
+}
+
 // Function to replace all occurrences of a substring
 std::string replaceAll(std::string str, const std::string& from, const std::string& to) {
     size_t start_pos = 0;
@@ -73,6 +98,7 @@ int main() {
     char filename[] = "C:/Users/Shi Zhang/My Drive/CS/NEU Align/Courses/2023 Fall/5330/Project02/img_database.csv";
     std::string baseline_target_image_path = "C:/Users/Shi Zhang/My Drive/CS/NEU Align/Courses/2023 Fall/5330/Project02/olympus/pic.1016.jpg";
     std::string histogram_target_image_path = "C:/Users/Shi Zhang/My Drive/CS/NEU Align/Courses/2023 Fall/5330/Project02/olympus/pic.0164.jpg";
+    std::string multiHistogram_target_image_path = "C:/Users/Shi Zhang/My Drive/CS/NEU Align/Courses/2023 Fall/5330/Project02/olympus/pic.0274.jpg";
     int N = 3;
 
 
@@ -105,18 +131,6 @@ int main() {
     std::vector<std::vector<float>> data;
     read_image_data_csv(filename, filenames, data);
 
-    // iterate over all read feature vectors and print them
-    /*
-    * debug print for csv reading
-    *   for (size_t i = 0; i < data.size(); i++) {
-        std::cout << "Read feature vector for " << filenames[i] << ": ";
-        for (const auto& feature : data[i]) {
-            std::cout << feature << " ";
-        }
-        std::cout << std::endl;
-    }
-    */
-
     std::vector<std::pair<float, std::string>> distances;
     for (size_t i = 0; i < data.size(); i++) {
         std::string compare_filename = replaceAll(std::string(filenames[i]), "\\", "/");
@@ -136,7 +150,7 @@ int main() {
 
     distances.clear();
 
-    /*Task 2 Histogram Matching*/
+    /*Task 2 2D Histogram Matching*/
     cv::Mat histogram_target_img = cv::imread(histogram_target_image_path, cv::IMREAD_COLOR);
     if (histogram_target_img.empty()) {
         std::cerr << "Could not read the histogram target image: " << histogram_target_image_path << std::endl;
@@ -163,9 +177,89 @@ int main() {
         return a.first > b.first;
         });
 
-    std::cout << "Top " << N << " Histogram Matches for " << histogram_target_image_path << " are: " << std::endl;
+    std::cout << "Top " << N << " 2D Histogram Matches for " << histogram_target_image_path << " are: " << std::endl;
     for (int i = 0; i < std::min(N, (int)distances.size()); i++) {
         std::cout << distances[i].second << " with histogram intersection: " << distances[i].first << std::endl;
+    }
+
+    distances.clear();
+
+    /*Task 2 3D Histogram Matching*/
+    cv::Mat histogram3D_target_img = cv::imread(histogram_target_image_path, cv::IMREAD_COLOR);
+    if (histogram3D_target_img.empty()) {
+        std::cerr << "Could not read the 3D histogram target image: " << histogram_target_image_path << std::endl;
+        return -1;
+    }
+
+    // Compute the 3D histogram for the target image
+    std::vector<float> target3DHistogram = compute3DHistogram(histogram3D_target_img, 8); // 8 bins for each channel
+
+    distances.clear(); // Clear the distances vector
+
+    // Compute 3D histograms for each image in the database and compute the histogram intersection
+    for (size_t i = 0; i < data.size(); i++) {
+        std::string compare_filename = replaceAll(std::string(filenames[i]), "\\", "/");
+        if (histogram_target_image_path != compare_filename) {
+            cv::Mat img = cv::imread(compare_filename, cv::IMREAD_COLOR);
+            std::vector<float> histogram = compute3DHistogram(img, 8); // 8 bins for each channel
+
+            float distance = histogramIntersection(target3DHistogram, histogram);
+            distances.push_back({ distance, compare_filename });
+        }
+    }
+
+    // Sort the distances in descending order as we are using histogram intersection
+    std::sort(distances.begin(), distances.end(), [](const auto& a, const auto& b) {
+        return a.first > b.first;
+        });
+
+    std::cout << "Top " << N << " 3D Histogram Matches for " << histogram_target_image_path << " are: " << std::endl;
+    for (int i = 0; i < std::min(N, (int)distances.size()); i++) {
+        std::cout << distances[i].second << " with 3D histogram intersection: " << distances[i].first << std::endl;
+    }
+
+    distances.clear();
+
+    /*Task 3 Multi-histogram Matching*/
+    cv::Mat multiHistogram_target_img = cv::imread(multiHistogram_target_image_path, cv::IMREAD_COLOR);
+    if (multiHistogram_target_img.empty()) {
+        std::cerr << "Could not read the multi-histogram target image: " << multiHistogram_target_image_path << std::endl;
+        return -1;
+    }
+
+    int half_height = multiHistogram_target_img.rows / 2;
+    cv::Rect top_roi(0, 0, multiHistogram_target_img.cols, half_height); // Top half of the image
+    cv::Rect bottom_roi(0, half_height, multiHistogram_target_img.cols, half_height); // Bottom half of the image
+
+    // Compute the 3D histograms for the target image's top and bottom halves
+    std::vector<float> top_histogram = compute3DHistogram(multiHistogram_target_img(top_roi), 8); // 8 bins for each channel
+    std::vector<float> bottom_histogram = compute3DHistogram(multiHistogram_target_img(bottom_roi), 8); // 8 bins for each channel
+
+    distances.clear();
+
+    for (size_t i = 0; i < data.size(); i++) {
+        std::string compare_filename = replaceAll(std::string(filenames[i]), "\\", "/");
+        if (multiHistogram_target_image_path != compare_filename) {
+            cv::Mat img = cv::imread(compare_filename, cv::IMREAD_COLOR);
+
+            std::vector<float> compare_top_histogram = compute3DHistogram(img(top_roi), 8); // 8 bins for each channel
+            std::vector<float> compare_bottom_histogram = compute3DHistogram(img(bottom_roi), 8); // 8 bins for each channel
+
+            float distance_top = histogramIntersection(top_histogram, compare_top_histogram);
+            float distance_bottom = histogramIntersection(bottom_histogram, compare_bottom_histogram);
+
+            float combined_distance = 0.5 * distance_top + 0.5 * distance_bottom;
+            distances.push_back({ combined_distance, compare_filename });
+        }
+    }
+
+    std::sort(distances.begin(), distances.end(), [](const auto& a, const auto& b) {
+        return a.first > b.first;
+        });
+
+    std::cout << "Top " << N << " Multi-histogram Matches for " << multiHistogram_target_image_path << " are: " << std::endl;
+    for (int i = 0; i < std::min(N, (int)distances.size()); i++) {
+        std::cout << distances[i].second << " with combined histogram intersection: " << distances[i].first << std::endl;
     }
 
     return 0;
