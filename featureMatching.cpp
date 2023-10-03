@@ -84,6 +84,38 @@ std::vector<float> compute3DHistogram(const cv::Mat& img, int bins) {
     return hist;
 }
 
+// Function to compute texture histogram using Sobel operator
+std::vector<float> computeTextureHistogram(const cv::Mat& img, int bins) {
+    cv::Mat gray, grad_x, grad_y, magnitude;
+    cv::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
+
+    // Compute gradients along x and y using Sobel operator
+    cv::Sobel(gray, grad_x, CV_32F, 1, 0, 3);
+    cv::Sobel(gray, grad_y, CV_32F, 0, 1, 3);
+
+    // Compute magnitude of gradients
+    cv::magnitude(grad_x, grad_y, magnitude);
+
+    // Compute histogram of gradient magnitudes
+    std::vector<float> hist(bins, 0);
+    float max_magnitude = 255.0; // Maximum possible magnitude with Sobel operator
+    for (int y = 0; y < magnitude.rows; y++) {
+        for (int x = 0; x < magnitude.cols; x++) {
+            float mag = magnitude.at<float>(y, x);
+            int binIdx = std::min(int(mag * bins / max_magnitude), bins - 1);
+            hist[binIdx] += 1;
+        }
+    }
+
+    // Normalize the histogram
+    float sum = 0;
+    for (const auto& val : hist) sum += val;
+    for (auto& val : hist) val /= sum;
+
+    return hist;
+}
+
+
 // Function to replace all occurrences of a substring
 std::string replaceAll(std::string str, const std::string& from, const std::string& to) {
     size_t start_pos = 0;
@@ -260,6 +292,47 @@ int main() {
     std::cout << "Top " << N << " Multi-histogram Matches for " << multiHistogram_target_image_path << " are: " << std::endl;
     for (int i = 0; i < std::min(N, (int)distances.size()); i++) {
         std::cout << distances[i].second << " with combined histogram intersection: " << distances[i].first << std::endl;
+    }
+
+    /*Task 4 Texture and Color Matching*/
+    std::string textureColor_target_image_path = "C:/Users/Shi Zhang/My Drive/CS/NEU Align/Courses/2023 Fall/5330/Project02/olympus/pic.0535.jpg";
+    cv::Mat textureColor_target_img = cv::imread(textureColor_target_image_path, cv::IMREAD_COLOR);
+    if (textureColor_target_img.empty()) {
+        std::cerr << "Could not read the texture and color target image: " << textureColor_target_image_path << std::endl;
+        return -1;
+    }
+
+    // Compute the 3D color histogram for the target image
+    std::vector<float> targetColorHistogram = compute3DHistogram(textureColor_target_img, 8); // 8 bins for each channel
+
+    // Compute the texture histogram for the target image
+    std::vector<float> targetTextureHistogram = computeTextureHistogram(textureColor_target_img, 8); // 8 bins for magnitude
+
+    distances.clear();
+
+    for (size_t i = 0; i < data.size(); i++) {
+        std::string compare_filename = replaceAll(std::string(filenames[i]), "\\", "/");
+        if (textureColor_target_image_path != compare_filename) {
+            cv::Mat img = cv::imread(compare_filename, cv::IMREAD_COLOR);
+
+            std::vector<float> compareColorHistogram = compute3DHistogram(img, 8); // 8 bins for each channel
+            std::vector<float> compareTextureHistogram = computeTextureHistogram(img, 8); // 8 bins for magnitude
+
+            float distance_color = histogramIntersection(targetColorHistogram, compareColorHistogram);
+            float distance_texture = histogramIntersection(targetTextureHistogram, compareTextureHistogram);
+
+            float combined_distance = 0.5 * distance_color + 0.5 * distance_texture;
+            distances.push_back({ combined_distance, compare_filename });
+        }
+    }
+
+    std::sort(distances.begin(), distances.end(), [](const auto& a, const auto& b) {
+        return a.first > b.first;
+        });
+
+    std::cout << "Top " << N << " Texture and Color Matches for " << textureColor_target_image_path << " are: " << std::endl;
+    for (int i = 0; i < std::min(N, (int)distances.size()); i++) {
+        std::cout << distances[i].second << " with combined texture and color intersection: " << distances[i].first << std::endl;
     }
 
     return 0;
