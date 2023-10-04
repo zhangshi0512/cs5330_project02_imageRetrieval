@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <iostream>
 #include <string>
+#include <numeric>
 
 float computeDistance(const std::vector<float>& feature1, const std::vector<float>& feature2) {
     if (feature1.size() != feature2.size()) {
@@ -115,6 +116,153 @@ std::vector<float> computeTextureHistogram(const cv::Mat& img, int bins) {
     return hist;
 }
 
+// Function to compute the co-occurrence matrix
+cv::Mat computeGLCM(const cv::Mat& gray, int dx, int dy, int levels) {
+    cv::Mat glcm(levels, levels, CV_32F, cv::Scalar(0));
+
+    for (int y = 0; y < gray.rows - dy; y++) {
+        for (int x = 0; x < gray.cols - dx; x++) {
+            int val1 = gray.at<uchar>(y, x);
+            int val2 = gray.at<uchar>(y + dy, x + dx);
+            glcm.at<float>(val1, val2) += 1.0;
+        }
+    }
+
+    // Normalize the GLCM
+    glcm /= (gray.rows * gray.cols);
+
+    return glcm;
+}
+
+// Function to compute features from the co-occurrence matrix
+std::vector<float> computeGLCMFeatures(const cv::Mat& glcm) {
+    float energy = 0.0, entropy = 0.0, contrast = 0.0, homogeneity = 0.0, maxProb = 0.0;
+
+    for (int i = 0; i < glcm.rows; i++) {
+        for (int j = 0; j < glcm.cols; j++) {
+            float val = glcm.at<float>(i, j);
+
+            energy += val * val;
+            if (val > 0) entropy -= val * std::log(val);
+            contrast += (i - j) * (i - j) * val;
+            homogeneity += val / (1.0 + std::abs(i - j));
+            if (val > maxProb) maxProb = val;
+        }
+    }
+
+    return { energy, entropy, contrast, homogeneity, maxProb };
+}
+
+
+// Function to compute histograms of Laws filter responses
+std::vector<float> computeLawsFeatures(const cv::Mat& gray) {
+    // Define 1D masks for Laws' texture energy measures
+    cv::Mat L5 = (cv::Mat_<float>(1, 5) << 1, 4, 6, 4, 1);
+    cv::Mat E5 = (cv::Mat_<float>(1, 5) << -1, -2, 0, 2, 1);
+    cv::Mat S5 = (cv::Mat_<float>(1, 5) << -1, 0, 2, 0, -1);
+    cv::Mat W5 = (cv::Mat_<float>(1, 5) << -1, 2, 0, -2, 1);
+    cv::Mat R5 = (cv::Mat_<float>(1, 5) << 1, -4, 6, -4, 1);
+
+    // Pre-allocate space for responses
+    std::vector<cv::Mat> responses(5);
+
+    // Compute responses for each mask
+    cv::filter2D(gray, responses[0], CV_32F, L5);
+    cv::filter2D(gray, responses[1], CV_32F, E5);
+    cv::filter2D(gray, responses[2], CV_32F, S5);
+    cv::filter2D(gray, responses[3], CV_32F, W5);
+    cv::filter2D(gray, responses[4], CV_32F, R5);
+
+    // Compute the histogram for each response
+    // For simplicity, we'll compute the mean of each response and use it as a feature
+    std::vector<float> features;
+    for (const auto& response : responses) {
+        cv::Scalar mean, stddev;
+        cv::meanStdDev(response, mean, stddev);
+        features.push_back(mean[0]);
+    }
+
+    return features;
+}
+
+
+// Function to compute histograms of Gabor filter responses
+std::vector<float> computeGaborFeatures(const cv::Mat& gray) {
+    // Define Gabor filter parameters
+    int kernel_size = 31;
+    double pos_sigma = 2.5;
+    double pos_lm = 50.0;
+    double pos_th = 0;
+    double pos_psi = 90;
+    cv::Mat dest;
+    cv::Mat kernel = cv::getGaborKernel(cv::Size(kernel_size, kernel_size), pos_sigma, pos_th, pos_lm, 0.5, pos_psi, CV_32F);
+    cv::filter2D(gray, dest, CV_32F, kernel);
+
+    // Compute the histogram for the response
+    // For simplicity, we'll compute the mean and standard deviation of the response and use them as features
+    cv::Scalar mean, stddev;
+    cv::meanStdDev(dest, mean, stddev);
+
+    return { static_cast<float>(mean[0]), static_cast<float>(stddev[0]) };
+
+}
+
+// Function to compute the histogram of gradient orientations using Canny edge detector
+std::vector<float> computeEdgeHistogram(const cv::Mat& img, int bins) {
+    cv::Mat gray, edges, dx, dy;
+    cv::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
+    cv::Canny(gray, edges, 50, 150);
+
+    // Compute gradient orientations
+    cv::Sobel(edges, dx, CV_32F, 1, 0, 3);
+    cv::Sobel(edges, dy, CV_32F, 0, 1, 3);
+    cv::Mat mag, angle;
+    cv::cartToPolar(dx, dy, mag, angle);
+
+    std::vector<float> histogram(bins, 0);
+    for (int i = 0; i < angle.rows; i++) {
+        for (int j = 0; j < angle.cols; j++) {
+            int bin = int(angle.at<float>(i, j) * bins / (2 * CV_PI));
+            histogram[bin]++;
+        }
+    }
+
+    // Normalize the histogram
+    float sum = std::accumulate(histogram.begin(), histogram.end(), 0.0f);
+    for (auto& val : histogram) val /= sum;
+
+    return histogram;
+}
+
+// Function to compute the custom feature vector for an image
+std::vector<float> computeCustomFeatureVector(const cv::Mat& img) {
+    // Compute 3D color histogram
+    std::vector<float> colorHist = compute3DHistogram(img, 8);
+
+    // Convert image to grayscale for texture and shape features
+    cv::Mat gray;
+    cv::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
+
+    // Compute GLCM features
+    cv::Mat glcm = computeGLCM(gray, 1, 0, 256);
+    std::vector<float> glcmFeatures = computeGLCMFeatures(glcm);
+
+    // Compute Gabor features
+    std::vector<float> gaborFeatures = computeGaborFeatures(gray);
+
+    // Compute edge histogram
+    std::vector<float> edgeHist = computeEdgeHistogram(img, 8);
+
+    // Combine all features into a single feature vector
+    std::vector<float> customFeatureVector;
+    customFeatureVector.insert(customFeatureVector.end(), colorHist.begin(), colorHist.end());
+    customFeatureVector.insert(customFeatureVector.end(), glcmFeatures.begin(), glcmFeatures.end());
+    customFeatureVector.insert(customFeatureVector.end(), gaborFeatures.begin(), gaborFeatures.end());
+    customFeatureVector.insert(customFeatureVector.end(), edgeHist.begin(), edgeHist.end());
+
+    return customFeatureVector;
+}
+
 
 // Function to replace all occurrences of a substring
 std::string replaceAll(std::string str, const std::string& from, const std::string& to) {
@@ -182,6 +330,8 @@ int main() {
 
     distances.clear();
 
+    std::cout << std::endl;
+
     /*Task 2 2D Histogram Matching*/
     cv::Mat histogram_target_img = cv::imread(histogram_target_image_path, cv::IMREAD_COLOR);
     if (histogram_target_img.empty()) {
@@ -215,6 +365,8 @@ int main() {
     }
 
     distances.clear();
+
+    std::cout << std::endl;
 
     /*Task 2 3D Histogram Matching*/
     cv::Mat histogram3D_target_img = cv::imread(histogram_target_image_path, cv::IMREAD_COLOR);
@@ -251,6 +403,8 @@ int main() {
     }
 
     distances.clear();
+
+    std::cout << std::endl;
 
     /*Task 3 Multi-histogram Matching*/
     cv::Mat multiHistogram_target_img = cv::imread(multiHistogram_target_image_path, cv::IMREAD_COLOR);
@@ -294,6 +448,8 @@ int main() {
         std::cout << distances[i].second << " with combined histogram intersection: " << distances[i].first << std::endl;
     }
 
+    std::cout << std::endl;
+
     /*Task 4 Texture and Color Matching*/
     std::string textureColor_target_image_path = "C:/Users/Shi Zhang/My Drive/CS/NEU Align/Courses/2023 Fall/5330/Project02/olympus/pic.0535.jpg";
     cv::Mat textureColor_target_img = cv::imread(textureColor_target_image_path, cv::IMREAD_COLOR);
@@ -334,6 +490,116 @@ int main() {
     for (int i = 0; i < std::min(N, (int)distances.size()); i++) {
         std::cout << distances[i].second << " with combined texture and color intersection: " << distances[i].first << std::endl;
     }
+
+    std::cout << std::endl;
+
+    /*Task 4 Extension Co-occurrence Matrices, Laws and Gabor Matching*/
+    std::string extension_target_image_path = textureColor_target_image_path;  // This is the same path as the one used for Task 4.
+    cv::Mat extension_target_img = cv::imread(extension_target_image_path, cv::IMREAD_GRAYSCALE);  // Convert to grayscale
+    if (extension_target_img.empty()) {
+        std::cerr << "Could not read the target image for Task 4 Extension: " << extension_target_image_path << std::endl;
+        return -1;
+    }
+
+    // Compute GLCM features for the target image
+    cv::Mat target_glcm = computeGLCM(extension_target_img, 1, 0, 256);  // 1 offset in x, 0 in y, 256 levels
+    std::vector<float> target_glcm_features = computeGLCMFeatures(target_glcm);
+
+    // Compute Laws' texture features for the target image
+    std::vector<float> target_laws_features = computeLawsFeatures(extension_target_img);
+
+    // Compute Gabor features for the target image
+    std::vector<float> target_gabor_features = computeGaborFeatures(extension_target_img);
+
+    // Concatenate all features together for the target image
+    std::vector<float> target_features_extension;
+    target_features_extension.insert(target_features_extension.end(), target_glcm_features.begin(), target_glcm_features.end());
+    target_features_extension.insert(target_features_extension.end(), target_laws_features.begin(), target_laws_features.end());
+    target_features_extension.insert(target_features_extension.end(), target_gabor_features.begin(), target_gabor_features.end());
+
+    distances.clear();
+
+    for (size_t i = 0; i < data.size(); i++) {
+        std::string compare_filename = replaceAll(std::string(filenames[i]), "\\", "/");
+        if (extension_target_image_path != compare_filename) {
+            cv::Mat img = cv::imread(compare_filename, cv::IMREAD_GRAYSCALE);  // Convert to grayscale
+
+            // Compute GLCM features for the image
+            cv::Mat img_glcm = computeGLCM(img, 1, 0, 256);
+            std::vector<float> img_glcm_features = computeGLCMFeatures(img_glcm);
+
+            // Compute Laws' texture features for the image
+            std::vector<float> img_laws_features = computeLawsFeatures(img);
+
+            // Compute Gabor features for the image
+            std::vector<float> img_gabor_features = computeGaborFeatures(img);
+
+            // Concatenate all features together for the image
+            std::vector<float> img_features_extension;
+            img_features_extension.insert(img_features_extension.end(), img_glcm_features.begin(), img_glcm_features.end());
+            img_features_extension.insert(img_features_extension.end(), img_laws_features.begin(), img_laws_features.end());
+            img_features_extension.insert(img_features_extension.end(), img_gabor_features.begin(), img_gabor_features.end());
+
+            // Compute distance between target and image features
+            float distance = computeDistance(target_features_extension, img_features_extension);
+            distances.push_back({ distance, compare_filename });
+        }
+    }
+
+    std::sort(distances.begin(), distances.end());
+
+    std::cout << "Top " << N << " Matches (GLCM, Laws, Gabor) for " << extension_target_image_path << " are: " << std::endl;
+    for (int i = 0; i < std::min(N, (int)distances.size()); i++) {
+        std::cout << distances[i].second << " with distance: " << distances[i].first << std::endl;
+    }
+
+    std::cout << std::endl;
+
+    // Clean up memory
+    distances.clear();
+
+    /*Task 5 Custom Design Feature Matching */
+    std::vector<std::vector<float>> customFeatureDatabase(data.size());
+    for (size_t i = 0; i < data.size(); i++) {
+        std::string image_path = replaceAll(std::string(filenames[i]), "\\", "/");
+        cv::Mat img = cv::imread(image_path, cv::IMREAD_COLOR);
+        customFeatureDatabase[i] = computeCustomFeatureVector(img);
+    }
+
+    // Define the query images for evaluation
+    std::vector<std::string> queryImages = {
+        "C:/Users/Shi Zhang/My Drive/CS/NEU Align/Courses/2023 Fall/5330/Project02/olympus/pic.0343.jpg",
+        "C:/Users/Shi Zhang/My Drive/CS/NEU Align/Courses/2023 Fall/5330/Project02/olympus/pic.0346.jpg"
+    };
+
+    for (const auto& queryImagePath : queryImages) {
+        cv::Mat queryImage = cv::imread(queryImagePath, cv::IMREAD_COLOR);
+        std::vector<float> queryFeatures = computeCustomFeatureVector(queryImage);
+
+        std::vector<std::pair<float, std::string>> distances;
+        for (size_t i = 0; i < customFeatureDatabase.size(); i++) {
+            std::string compare_filename = replaceAll(std::string(filenames[i]), "\\", "/");
+            if (queryImagePath != compare_filename) {
+                float distance = computeDistance(queryFeatures, customFeatureDatabase[i]);
+                distances.push_back({ distance, compare_filename });
+            }
+        }
+
+        std::sort(distances.begin(), distances.end());
+
+        std::cout << "Top 10 Custom Feature Matches for " << queryImagePath << " are: " << std::endl;
+        for (int i = 0; i < 10; i++) {
+            std::cout << distances[i].second << " with distance: " << distances[i].first << std::endl;
+        }
+
+        std::cout << "\nLeast similar images are: " << std::endl;
+        for (int i = distances.size() - 10; i < distances.size(); i++) {
+            std::cout << distances[i].second << " with distance: " << distances[i].first << std::endl;
+        }
+
+        std::cout << std::endl;
+    }
+
 
     return 0;
 }
