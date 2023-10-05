@@ -113,17 +113,25 @@ Select a project from the Projects dropdown menu.
 Check the projects it depends on.
 
 ##### Step 5: Update the file path for your local environment.
-Go to imgExtraction2CSV.cpp. 
-std::string directory_path is for the image library, where you saved the given image database folder in your local drive.
-char filename[] is for the CSV file saved in your local drive.
+###### Go to imgExtraction2CSV.cpp. 
 
-Go to featureMatching.cpp.
-char filename[] is for accessing the CSV file saved in your local drive.
-std::string baseline_target_image_path is for the target image from your image database for baseline matching.
-std::string histogram_target_image_path is for the target image from your image database for histogram matching.
-std::string multiHistogram_target_image_path is for the target image from your image database for multi-histogram matching.
-std::string textureColor_target_image_path is for the target image from your image database for texture and color matching.
-std::vector<std::string> queryImages is for the two target images from your image database for custom matching.
+- std::string directory_path is for the image library, where you saved the given image database folder in your local drive.
+
+- char filename[] is for the CSV file saved in your local drive.
+
+###### Go to featureMatching.cpp.
+
+- char filename[] is for accessing the CSV file saved in your local drive.
+
+- std::string baseline_target_image_path is for the target image from your image database for baseline matching.
+
+- std::string histogram_target_image_path is for the target image from your image database for histogram matching.
+
+- std::string multiHistogram_target_image_path is for the target image from your image database for multi-histogram matching.
+
+- std::string textureColor_target_image_path is for the target image from your image database for texture and color matching.
+
+- std::vector<std::string> queryImages is for the two target images from your image database for custom matching.
 
 ##### Step 6: Build and Run the Projects
 To build a specific project, right-click on the project in Solution Explorer and choose Build.
@@ -131,3 +139,6 @@ To run a specific project, right-click on the project in Solution Explorer and c
 
 ##### Step 7: Debugging and Running
 You can debug or run each project separately by setting it as the startup project.
+
+### Time Travel Days
+I did not use any time travel days in this assignment. 
