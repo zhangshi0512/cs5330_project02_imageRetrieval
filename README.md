@@ -12,7 +12,7 @@ Student: Shi Zhang
 
 ### 1. Project Description
 
-The goal of this project is, given a database of images and a target image, find images in thedata with similar content.
+This project focuses on image feature extraction and matching. The primary objective is to extract relevant features from an image and store them in a CSV file. These features are then compared against other images to find the closest matches based on various algorithms like histogram matching, GLCM, and Gabor filters. The project demonstrates how different feature extraction and comparison techniques can yield different results, helping us understand the nuances and importance of each method in image processing.
 
 ### 2. Project Illustrations
 
@@ -41,7 +41,7 @@ The goal of this project is, given a database of images and a target image, find
 
 ### 3. Extensions and Example Images
 
-The two extensions I proceed with are: 
+The several extensions I proceed with are: 
 - Function to compute features from the co-occurrence matrix.
 - Function to compute histograms of Laws filter responses.
 - Function to compute histograms of Gabor filter responses.
@@ -112,9 +112,22 @@ Go to Project Dependencies....
 Select a project from the Projects dropdown menu.
 Check the projects it depends on.
 
-##### Step 5: Build and Run the Projects
+##### Step 5: Update the file path for your local environment.
+Go to imgExtraction2CSV.cpp. 
+std::string directory_path is for the image library, where you saved the given image database folder in your local drive.
+char filename[] is for the CSV file saved in your local drive.
+
+Go to featureMatching.cpp.
+char filename[] is for accessing the CSV file saved in your local drive.
+std::string baseline_target_image_path is for the target image from your image database for baseline matching.
+std::string histogram_target_image_path is for the target image from your image database for histogram matching.
+std::string multiHistogram_target_image_path is for the target image from your image database for multi-histogram matching.
+std::string textureColor_target_image_path is for the target image from your image database for texture and color matching.
+std::vector<std::string> queryImages is for the two target images from your image database for custom matching.
+
+##### Step 6: Build and Run the Projects
 To build a specific project, right-click on the project in Solution Explorer and choose Build.
 To run a specific project, right-click on the project in Solution Explorer and choose Set as StartUp Project, then press F5 or click on the Start Debugging button.
 
-##### Step 6: Debugging and Running
+##### Step 7: Debugging and Running
 You can debug or run each project separately by setting it as the startup project.
