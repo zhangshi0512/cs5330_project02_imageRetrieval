@@ -35,7 +35,7 @@ This project focuses on image feature extraction and matching. The primary objec
 ![image](results/featureMatching_6.jpg)
 
 #### Task 5: Custom Design
-
+![image](results/Test%20Result2.JPG)
 ![image](results/featureMatching_7.jpg)
 ![image](results/featureMatching_8.jpg)
 
@@ -46,6 +46,7 @@ The several extensions I proceed with are:
 - Function to compute histograms of Laws filter responses.
 - Function to compute histograms of Gabor filter responses.
 - Function to compute the histogram of gradient orientations using Canny edge detector
+- Custom Matching also provides the top 10 least similar matches. 
 
 ### 4. Reflection
 Throughout the course of this project, I delved deep into the nuances of image feature extraction and matching. I learned about the importance of selecting the right features for different tasks and how different algorithms can provide varying results. The project also reinforced the significance of preprocessing and normalization, especially when working with diverse image datasets.
