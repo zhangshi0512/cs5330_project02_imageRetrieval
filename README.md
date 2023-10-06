@@ -33,6 +33,9 @@ This project focuses on image feature extraction and matching. The primary objec
 
 ![image](results/featureMatching_5.jpg)
 ![image](results/featureMatching_6.jpg)
+![image](results/featureMatching_9.jpg)
+![image](results/featureMatching_10.jpg)
+![image](results/featureMatching_11.jpg)
 
 #### Task 5: Custom Design
 ![image](results/Test%20Result2.JPG)
