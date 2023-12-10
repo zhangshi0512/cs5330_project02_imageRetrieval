@@ -2,6 +2,8 @@
 // This program implements various image feature extraction and matching techniques using histograms, 
 // texture analysis, and custom feature vectors, primarily utilizing OpenCV for image processing.
 
+// CS 5330 Computer Vision
+// Fall 2023 Dec 9th
 // Author: Shi Zhang
 
 // Import statements
@@ -108,9 +110,12 @@ std::vector<float> computeTextureHistogram(const cv::Mat& img, int bins) {
     // Compute histogram of gradient magnitudes
     std::vector<float> hist(bins, 0);
     float max_magnitude = 255.0; // Maximum possible magnitude with Sobel operator
+
+    // Use pointer access for improved performance
     for (int y = 0; y < magnitude.rows; y++) {
+        const float* magRow = magnitude.ptr<float>(y);
         for (int x = 0; x < magnitude.cols; x++) {
-            float mag = magnitude.at<float>(y, x);
+            float mag = magRow[x];  // Accessing pixel value using pointer
             int binIdx = std::min(int(mag * bins / max_magnitude), bins - 1);
             hist[binIdx] += 1;
         }

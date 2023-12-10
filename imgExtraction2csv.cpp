@@ -2,6 +2,8 @@
 // This program extracts features from images in a specified directory and saves these features 
 // along with image paths into a CSV file for further analysis.
 
+// CS 5330 Computer Vision
+// Fall 2023 Dec 9th
 // Author: Shi Zhang
 
 // Import statements
