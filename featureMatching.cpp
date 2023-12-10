@@ -1,3 +1,10 @@
+// featureMatching.cpp
+// This program implements various image feature extraction and matching techniques using histograms, 
+// texture analysis, and custom feature vectors, primarily utilizing OpenCV for image processing.
+
+// Author: Shi Zhang
+
+// Import statements
 #include "csv_util.h"
 #include <opencv2/opencv.hpp>
 #include <vector>
@@ -6,6 +13,7 @@
 #include <string>
 #include <numeric>
 
+// Function to compute Euclidean distance between two feature vectors
 float computeDistance(const std::vector<float>& feature1, const std::vector<float>& feature2) {
     if (feature1.size() != feature2.size()) {
         std::cerr << "Error: Feature vectors must have the same length!" << std::endl;
@@ -21,7 +29,7 @@ float computeDistance(const std::vector<float>& feature1, const std::vector<floa
     return sumSquaredDifferences;
 }
 
-// Function to compute 2D histogram
+// Function to compute 2D histogram for color distribution in an image
 std::vector<float> computeHistogram(const cv::Mat& img, int bins) {
     std::vector<float> hist(bins * bins, 0);
 
@@ -51,7 +59,7 @@ std::vector<float> computeHistogram(const cv::Mat& img, int bins) {
 }
 
 
-// Function to compute histogram intersection
+// Function to compute histogram intersection between two histograms
 float histogramIntersection(const std::vector<float>& h1, const std::vector<float>& h2) {
     float intersection = 0;
     for (size_t i = 0; i < h1.size(); i++) {
@@ -60,7 +68,7 @@ float histogramIntersection(const std::vector<float>& h1, const std::vector<floa
     return intersection;
 }
 
-// Function to compute 3D histogram
+// Function to compute 3D histogram for color distribution in an image
 std::vector<float> compute3DHistogram(const cv::Mat& img, int bins) {
     int bins3D = bins * bins * bins;
     std::vector<float> hist(bins3D, 0);
@@ -116,7 +124,7 @@ std::vector<float> computeTextureHistogram(const cv::Mat& img, int bins) {
     return hist;
 }
 
-// Function to compute the co-occurrence matrix
+// Function to compute the co-occurrence matrix from a grayscale image
 cv::Mat computeGLCM(const cv::Mat& gray, int dx, int dy, int levels) {
     cv::Mat glcm(levels, levels, CV_32F, cv::Scalar(0));
 
@@ -277,8 +285,8 @@ std::string replaceAll(std::string str, const std::string& from, const std::stri
 int main() {
     char filename[] = "C:/Users/Shi Zhang/My Drive/CS/NEU Align/Courses/2023 Fall/5330/Project02/img_database.csv";
     std::string baseline_target_image_path = "C:/Users/Shi Zhang/My Drive/CS/NEU Align/Courses/2023 Fall/5330/Project02/olympus/pic.1016.jpg";
-    std::string histogram_target_image_path = "C:/Users/Shi Zhang/My Drive/CS/NEU Align/Courses/2023 Fall/5330/Project02/olympus/pic.0164.jpg";
-    std::string multiHistogram_target_image_path = "C:/Users/Shi Zhang/My Drive/CS/NEU Align/Courses/2023 Fall/5330/Project02/olympus/pic.0274.jpg";
+    std::string histogram_target_image_path = "C:/Users/Shi Zhang/My Drive/CS/NEU Align/Courses/2023 Fall/5330/Project02/olympus/pic.0535.jpg";
+    std::string multiHistogram_target_image_path = "C:/Users/Shi Zhang/My Drive/CS/NEU Align/Courses/2023 Fall/5330/Project02/olympus/pic.0535.jpg";
     int N = 3;
 
 
